@@ -2,6 +2,8 @@ package com.example.sftp.repositories;
 
 import com.example.sftp.entities.models.OperatingSystemSummary;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-public interface OperatingSystemRepository extends JpaRepository<Integer, OperatingSystemSummary> {
+@Repository
+public interface OperatingSystemRepository extends JpaRepository<OperatingSystemSummary, Long> {
 }

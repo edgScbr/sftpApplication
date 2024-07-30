@@ -6,9 +6,16 @@ import com.example.sftp.entities.models.AgeRangeSummary;
 import com.example.sftp.entities.models.CitySummary;
 import com.example.sftp.entities.models.GenderSummary;
 import com.example.sftp.entities.models.OperatingSystemSummary;
+import com.example.sftp.repositories.AgeRangeRepository;
+import com.example.sftp.repositories.CityRepository;
+import com.example.sftp.repositories.GenderRepository;
+import com.example.sftp.repositories.OperatingSystemRepository;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 
@@ -22,12 +29,33 @@ import java.util.stream.Collectors;
 @Component
 public class ApiRoute extends RouteBuilder {
 
+    @Autowired
+    private AgeRangeRepository ageRangeRepository;
+    @Autowired
+    private CityRepository cityRepository;
+    @Autowired
+    private GenderRepository genderRepository;
+    @Autowired
+    private OperatingSystemRepository operatingSystemRepository;
 
     @Override
     public void configure() throws Exception {
 
         BindyCsvDataFormat bindy = new BindyCsvDataFormat(User.class);
         bindy.setLocale("us");
+
+        BindyCsvDataFormat bindyGender = new BindyCsvDataFormat(GenderSummary.class);
+        bindyGender.setLocale("us");
+
+        BindyCsvDataFormat bindyPeopleByAge = new BindyCsvDataFormat(AgeRangeSummary.class);
+        bindyPeopleByAge.setLocale("us");
+
+        BindyCsvDataFormat bindyCity = new BindyCsvDataFormat(CitySummary.class);
+        bindyCity.setLocale("us");
+
+        BindyCsvDataFormat bindyOs = new BindyCsvDataFormat(OperatingSystemSummary.class);
+        bindyOs.setLocale("us");
+
 
         from("timer:fetchData?period=10000")
                 .to("rest:get:?host=https://dummyjson.com/users")
@@ -47,25 +75,31 @@ public class ApiRoute extends RouteBuilder {
                 .setProperty("userList").body()
                 .marshal(bindy)
                 .to("file:data/output/csv")
-                //.log("${exchangeProperty.userList}")
+                .log("${exchangeProperty.userList}")
                 .process(exchange -> {
-                    GenderSummary genderSummary = new GenderSummary();
-                    UsersList userList = (UsersList) exchange.getProperty("userList");
-
-                    List<User> males = userList.getUsers()
+                    //calculate gender summary
+                    List<User> userList = (List<User>) exchange.getProperty("userList");
+                    List<GenderSummary> genderSummaries = new ArrayList<>();
+                    List<User> males = userList
                             .stream()
                             .filter(i -> i.getGender().equals("male")).toList();
+                    genderSummaries.add(new GenderSummary("male", males.size()));
 
-                    List<User> females = userList.getUsers()
+                    List<User> females = userList
                             .stream()
                             .filter(i -> i.getGender().equals("female")).toList();
+                    genderSummaries.add(new GenderSummary("female", females.size()));
 
-                    List<User> others = userList.getUsers()
+                    List<User> others = userList
                             .stream()
-                            .filter(i -> i.getGender().equals("other")).toList();
+                            .filter(i ->
+                                    !i.getGender().equals("male") && !i.getGender().equals("female")
+                            ).toList();
+                    genderSummaries.add(new GenderSummary("other", others.size()));
+                    genderSummaries.forEach(s -> genderRepository.save(s));
 
+                    //calculate users age summary
                     List<AgeRangeSummary> peopleByAge = new ArrayList<>();
-
                     for(int i=0; i <= 100; i+=10){
                         AgeRangeSummary sum = new AgeRangeSummary();
                         final int index = i;
@@ -78,7 +112,7 @@ public class ApiRoute extends RouteBuilder {
                             sum.setOtherCount(Math.toIntExact(others.stream().filter(o ->
                                     o.getAge() >= index + low && o.getAge() <= index + 10).count()));
 
-                            sum.setRange((index+low)+"-"+index+10);
+                            sum.setRange((index+low)+"-"+(index+10));
                         } else {
                             sum.setMaleCount(Math.toIntExact(males.stream().filter(m ->
                                     m.getAge() >= index - 9).count()));
@@ -90,28 +124,33 @@ public class ApiRoute extends RouteBuilder {
                             sum.setRange(index-9+"+");
                         }
                         peopleByAge.add(sum);
+                        ageRangeRepository.save(sum);
                     }
 
-                    //all cities
-                    Set<String> cities = userList.getUsers().stream()
+                    //calculate cities summary
+                    Set<String> cities = userList.stream()
                             .map(u -> u.getAddress().getCity()).collect(Collectors.toSet());
 
-                     List<CitySummary> citySummaries = new ArrayList<CitySummary>();
+                     List<CitySummary> citySummaries = new ArrayList<>();
 
                     cities.forEach(c -> {
                         CitySummary sum = new CitySummary();
                         sum.setMaleCount(males.stream().filter(u ->
                             u.getAddress().getCity().equals(c)).count());
-                        sum.setFemaleCount(females.stream().filter(u ->
+                        sum.setFemaleCount(females.stream().filter(f ->
+                            f.getAddress().getCity().equals(c)).count());
+                        sum.setOtherCount(others.stream().filter(u ->
                             u.getAddress().getCity().equals(c)).count());
-                        sum.setFemaleCount(others.stream().filter(u ->
-                            u.getAddress().getCity().equals(c)).count());
+                        sum.setCity(c);
                         citySummaries.add(sum);
+                        cityRepository.save(sum);
                         });
-                    // all operating systems
-                    Set<String> operatingSystems =userList.getUsers().stream()
+
+
+                    // calculate operating systems summary
+                    Set<String> operatingSystems =userList.stream()
                             .map(u -> {
-                                int start = u.getUserAgent().indexOf("(");
+                                int start = u.getUserAgent().indexOf("(") + 1;
                                 int end = u.getUserAgent().indexOf(";");
                                 return u.getUserAgent().substring(start, end);
                             }).collect(Collectors.toSet());
@@ -120,13 +159,41 @@ public class ApiRoute extends RouteBuilder {
 
                     operatingSystems.forEach(os -> {
                         OperatingSystemSummary sum = new OperatingSystemSummary();
-                        sum.setTotal(operatingSystems.stream().filter(o ->
-                                o.equals(os)).count());
+                        sum.setTotal(userList.stream().filter(u -> u.getUserAgent().contains(os)).count());
                         sum.setOs(os);
                         operatingSystemSummaries.add(sum);
+                        operatingSystemRepository.save(sum);
                     });
+                    exchange.setProperty("osSummary", operatingSystemSummaries);
+                    exchange.setProperty("citySummary", citySummaries);
+                    exchange.setProperty("peopleByAge", peopleByAge);
+                    exchange.setProperty("genderSummary", genderSummaries);
+                })
+                // Generate Summary csv
+                .setBody(exchange -> exchange.getProperty("genderSummary"))
+                .process(exchange -> {
+                    String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
+                    exchange.getIn().setHeader("CamelFileName", "summary_" + date + ".csv");
 
-                });
+                })
+                .log("${body}")
+                .marshal(bindyGender)
+                .to("file:data/output/csv?fileExist=Append")
+
+                .setBody(exchange -> exchange.getProperty("peopleByAge"))
+                .marshal(bindyPeopleByAge)
+                .to("file:data/output/csv?fileExist=Append")
+
+                .setBody(exchange -> exchange.getProperty("citySummary"))
+                .marshal(bindyCity)
+                .to("file:data/output/csv?fileExist=Append")
+
+                .setBody(exchange -> exchange.getProperty("osSummary"))
+                .marshal(bindyOs)
+                .to("file:data/output/csv?fileExist=Append");;
+
+
+
 
     }
 }

@@ -14,4 +14,5 @@ import java.util.List;
 public class UsersList {
 
     private List<User> users;
+
 }

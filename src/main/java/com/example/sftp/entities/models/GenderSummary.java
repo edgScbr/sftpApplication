@@ -7,18 +7,20 @@ import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.camel.dataformat.bindy.annotation.CsvRecord;
+import org.apache.camel.dataformat.bindy.annotation.DataField;
 
 @Entity
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@CsvRecord( separator = "," )
 public class GenderSummary {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
-    private Integer maleCount;
-    private Integer femaleCount;
-    private Integer otherCount;
+    @DataField(pos = 1)
+    private String gender;
+    @DataField(pos = 2)
+    private Integer total;
 
 }
