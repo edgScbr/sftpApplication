@@ -14,6 +14,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 
@@ -36,6 +37,22 @@ public class ApiRoute extends RouteBuilder {
     @Autowired
     private OperatingSystemRepository operatingSystemRepository;
 
+    @Value("${sftp-atmoz-server}")
+    private String sftpServer;
+
+    @Value("${sftp-atmoz-port}")
+    private String sftpPort;
+
+    @Value("${sftp-atmoz-user}")
+    private String sftpUser;
+
+    @Value("${sftp-atmoz-password}")
+    private String sftpPassword;
+
+    @Value("${route-cron-start-time}")
+    private String cronStartTime;
+
+
     @Override
     public void configure() throws Exception {
 
@@ -55,7 +72,7 @@ public class ApiRoute extends RouteBuilder {
         bindyOs.setLocale("us");
 
         //from("timer:fetchData?period=10000").startupOrder(1)
-        from("quartz://myTimer?cron=0+0+6+*+*+?").startupOrder(1)
+        from("quartz://myTimer?cron=0+0+"+cronStartTime+"+*+*+?").startupOrder(1)
                 .to("rest:get:?host=https://dummyjson.com/users")
                 .log("---${body}")
                 .process(exchange -> {
@@ -98,7 +115,7 @@ public class ApiRoute extends RouteBuilder {
 
                     //calculate users age summary
                     List<AgeRangeSummary> peopleByAge = new ArrayList<>();
-                    for(int i=0; i <= 100; i+=10){
+                    for (int i = 0; i <= 100; i += 10) {
                         AgeRangeSummary sum = new AgeRangeSummary();
                         final int index = i;
                         int low = i == 0 ? 0 : 1;
@@ -110,7 +127,7 @@ public class ApiRoute extends RouteBuilder {
                             sum.setOtherCount(Math.toIntExact(others.stream().filter(o ->
                                     o.getAge() >= index + low && o.getAge() <= index + 10).count()));
 
-                            sum.setRange((index+low)+"-"+(index+10));
+                            sum.setRange((index + low) + "-" + (index + 10));
                         } else {
                             sum.setMaleCount(Math.toIntExact(males.stream().filter(m ->
                                     m.getAge() >= index - 9).count()));
@@ -119,7 +136,7 @@ public class ApiRoute extends RouteBuilder {
                             sum.setOtherCount(Math.toIntExact(others.stream().filter(o ->
                                     o.getAge() >= index - 9).count()));
 
-                            sum.setRange(index-9+"+");
+                            sum.setRange(index - 9 + "+");
                         }
                         peopleByAge.add(sum);
                         ageRangeRepository.save(sum);
@@ -129,24 +146,24 @@ public class ApiRoute extends RouteBuilder {
                     Set<String> cities = userList.stream()
                             .map(u -> u.getAddress().getCity()).collect(Collectors.toSet());
 
-                     List<CitySummary> citySummaries = new ArrayList<>();
+                    List<CitySummary> citySummaries = new ArrayList<>();
 
                     cities.forEach(c -> {
                         CitySummary sum = new CitySummary();
                         sum.setMaleCount(males.stream().filter(u ->
-                            u.getAddress().getCity().equals(c)).count());
+                                u.getAddress().getCity().equals(c)).count());
                         sum.setFemaleCount(females.stream().filter(f ->
-                            f.getAddress().getCity().equals(c)).count());
+                                f.getAddress().getCity().equals(c)).count());
                         sum.setOtherCount(others.stream().filter(u ->
-                            u.getAddress().getCity().equals(c)).count());
+                                u.getAddress().getCity().equals(c)).count());
                         sum.setCity(c);
                         citySummaries.add(sum);
                         cityRepository.save(sum);
-                        });
+                    });
 
 
                     // calculate operating systems summary
-                    Set<String> operatingSystems =userList.stream()
+                    Set<String> operatingSystems = userList.stream()
                             .map(u -> {
                                 int start = u.getUserAgent().indexOf("(") + 1;
                                 int end = u.getUserAgent().indexOf(";");
@@ -191,7 +208,7 @@ public class ApiRoute extends RouteBuilder {
                 .to("file:data/output?fileExist=Append");
 
         from("file:data/output?noop=true").startupOrder(2)
-                .to("sftp://foo@localhost:2222/upload?password=pass")
+                .to("sftp://" + sftpUser + "@" + sftpServer + ":" + sftpPort + "/upload?password=" + sftpPassword)
                 .log("${body}");
 
 

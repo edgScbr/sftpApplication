@@ -1,11 +1,16 @@
-FROM alpine:latest
-# Install SQLite
-RUN apk --no-cache add sqlite
-# Create a directory to store the database
-WORKDIR /db
-# Copy your SQLite database file into the container
-COPY initial-db.sqlite /db/
-# Expose the port if needed
-# EXPOSE 1433
-# Command to run when the container starts
-CMD ["sqlite3", "/data/initial-db.sqlite"]
+# Use an official OpenJDK runtime as a parent image
+FROM openjdk:21-jdk
+
+ARG JAR_FILE=target/*.jar
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the jar file into the container
+COPY ./target/sftp-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose the port the application runs on
+EXPOSE 8080
+
+# Run the Spring Boot application
+ENTRYPOINT ["java", "-jar", "app.jar"]

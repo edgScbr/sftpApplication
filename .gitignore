@@ -76,3 +76,4 @@ secrets.yml
 .git-hooks/
 node_modules
 /data
+/sftp-data

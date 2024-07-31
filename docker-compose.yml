@@ -4,6 +4,15 @@ networks:
     driver: bridge
 
 services:
+  app:
+    image: sftp-app
+    container_name: sftp_camel
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - backend
+
   sqlite-container:
     image: alpine:latest
     volumes:
@@ -27,6 +36,7 @@ services:
     container_name: sqlitebrowser
   sftp:
     image: atmoz/sftp
+    container_name: atmoz_sftp
     ports:
       - "2222:22"
     volumes:
