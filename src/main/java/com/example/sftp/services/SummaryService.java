@@ -1,2 +1,8 @@
-package com.example.sftp.services;public interface SummaryService {
+package com.example.sftp.services;
+
+import com.example.sftp.controllers.responses.SummaryResponse;
+
+public interface SummaryService {
+
+    SummaryResponse getSummary();
 }

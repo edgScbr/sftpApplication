@@ -10,8 +10,6 @@ import com.example.sftp.repositories.AgeRangeRepository;
 import com.example.sftp.repositories.CityRepository;
 import com.example.sftp.repositories.GenderRepository;
 import com.example.sftp.repositories.OperatingSystemRepository;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
@@ -57,8 +55,8 @@ public class ApiRoute extends RouteBuilder {
         bindyOs.setLocale("us");
 
 
-        from("timer:fetchData?period=10000").startupOrder(1)
-                .to("rest:get:?host=https://dummyjson.com/users")
+        from("quartz://myTimer?cron=0+0+6+*+*+?").startupOrder(1)
+                .to("rest:get:?host=https://dummyjson.  com/users")
                 .log("---${body}")
                 .process(exchange -> {
                     String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
