@@ -57,14 +57,14 @@ public class ApiRoute extends RouteBuilder {
         bindyOs.setLocale("us");
 
 
-        from("timer:fetchData?period=10000")
+        from("timer:fetchData?period=10000").startupOrder(1)
                 .to("rest:get:?host=https://dummyjson.com/users")
                 .log("---${body}")
                 .process(exchange -> {
                     String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
                     exchange.getIn().setHeader("CamelFileName", "data_" + date + ".json");
                 })
-                .to("file:data/output/json?fileExist=Append")
+                .to("file:data/output?fileExist=Append")
                 .unmarshal(new JacksonDataFormat(UsersList.class))
                 .process(exchange -> {
                     String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
@@ -74,7 +74,7 @@ public class ApiRoute extends RouteBuilder {
                 })
                 .setProperty("userList").body()
                 .marshal(bindy)
-                .to("file:data/output/csv")
+                .to("file:data/output")
                 .log("${exchangeProperty.userList}")
                 .process(exchange -> {
                     //calculate gender summary
@@ -178,21 +178,23 @@ public class ApiRoute extends RouteBuilder {
                 })
                 .log("${body}")
                 .marshal(bindyGender)
-                .to("file:data/output/csv?fileExist=Append")
+                .to("file:data/output?fileExist=Append")
 
                 .setBody(exchange -> exchange.getProperty("peopleByAge"))
                 .marshal(bindyPeopleByAge)
-                .to("file:data/output/csv?fileExist=Append")
+                .to("file:data/output?fileExist=Append")
 
                 .setBody(exchange -> exchange.getProperty("citySummary"))
                 .marshal(bindyCity)
-                .to("file:data/output/csv?fileExist=Append")
+                .to("file:data/output?fileExist=Append")
 
                 .setBody(exchange -> exchange.getProperty("osSummary"))
                 .marshal(bindyOs)
-                .to("file:data/output/csv?fileExist=Append");;
+                .to("file:data/output?fileExist=Append");
 
-
+        from("file:data/output?noop=true").startupOrder(2)
+                .to("sftp://foo@localhost:2222/upload?password=pass")
+                .log("${body}");
 
 
     }
