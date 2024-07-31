@@ -1,4 +1,7 @@
-version: '3'
+
+networks:
+  backend:
+    driver: bridge
 
 services:
   sqlite-container:
@@ -22,6 +25,27 @@ services:
     volumes:
       - sqlite_data:/data/db
     container_name: sqlitebrowser
+  sftp:
+    image: atmoz/sftp
+    ports:
+      - "2222:22"
+    volumes:
+      - ./sftp-data:/home/foo/upload
+    networks:
+        - backend
+    command: foo:pass:1001
+
+  filezilla:
+    image: jlesage/filezilla
+    ports:
+      - "5800:5800"
+    volumes:
+      - filezilla-config:/config:rw
+      - filezilla-storage:/storage:rw
+    networks:
+      - backend
 
 volumes:
   sqlite_data:
+  filezilla-config:
+  filezilla-storage:
