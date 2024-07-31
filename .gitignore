@@ -75,3 +75,4 @@ secrets.yml
 .sts4-cache
 .git-hooks/
 node_modules
+/data
