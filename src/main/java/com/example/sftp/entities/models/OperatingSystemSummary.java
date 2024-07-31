@@ -18,11 +18,8 @@ import org.apache.camel.dataformat.bindy.annotation.DataField;
 public class OperatingSystemSummary {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     @DataField(pos = 1)
-    private Long id;
-    @DataField(pos = 2)
     private String os;
-    @DataField(pos = 3)
+    @DataField(pos = 2)
     private Long total;
 }

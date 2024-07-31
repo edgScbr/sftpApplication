@@ -54,9 +54,9 @@ public class ApiRoute extends RouteBuilder {
         BindyCsvDataFormat bindyOs = new BindyCsvDataFormat(OperatingSystemSummary.class);
         bindyOs.setLocale("us");
 
-
+        //from("timer:fetchData?period=10000").startupOrder(1)
         from("quartz://myTimer?cron=0+0+6+*+*+?").startupOrder(1)
-                .to("rest:get:?host=https://dummyjson.  com/users")
+                .to("rest:get:?host=https://dummyjson.com/users")
                 .log("---${body}")
                 .process(exchange -> {
                     String date = new SimpleDateFormat("yyyyMMdd").format(new Date());
@@ -102,7 +102,7 @@ public class ApiRoute extends RouteBuilder {
                         AgeRangeSummary sum = new AgeRangeSummary();
                         final int index = i;
                         int low = i == 0 ? 0 : 1;
-                        if (i < 90) {
+                        if (i <= 90) {
                             sum.setMaleCount(Math.toIntExact(males.stream().filter(m ->
                                     m.getAge() >= index + low && m.getAge() <= index + 10).count()));
                             sum.setFemaleCount(Math.toIntExact(females.stream().filter(f ->
